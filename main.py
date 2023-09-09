@@ -1,12 +1,16 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 import torchvision
+import torch
 import tensorflow as tf
+import PIL
+import io
+import os
 
 app = Flask(__name__)
 
 
 class SegmentationModel():
-    def __init__(self, model_path = "App/ml_models/segmodelv3.tflite"):
+    def __init__(self, model_path = "segmodelv3.tflite"):
         # Load the TFLite model and allocate tensors
         self.interpreter = tf.lite.Interpreter(model_path=model_path)
         self.interpreter.allocate_tensors()
@@ -33,10 +37,48 @@ class SegmentationModel():
 
         return (leaf_data, disease_data)
 
+def FileStorage_to_Tensor(file_storage_object):
+    # image_binary = file_storage_object.read()
+    image_binary = file_storage_object
+    pil_image = PIL.Image.open(io.BytesIO(image_binary))
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    ])
+    tensor_image = transform(pil_image)
+    return tensor_image
 
-@app.route('/')
+segmentation_model = SegmentationModel()
+
+@app.route('/', methods=['POST'])
 def index():
-    return 'Hello from Flask!'
+    try:
+        data = request.form
 
-if __name__ == 'main':
-  app.run(host='0.0.0.0', port=81)
+        # Get the image file from the request
+        image_file = request.files['image']
+
+        image_data = image_file.read()
+
+        '''
+        Classification with models stored locally
+        ** do not delete
+        '''
+        # Run the image through the classification model to get the prediction
+        # step 1 load image as tensor
+        image = FileStorage_to_Tensor(image_data)
+        print(type(image))
+        # step 2 segment image
+        leaf, disease = segmentation_model.forward(image.unsqueeze(0))
+
+        return '{' + f'leaf: {leaf.numpy().tostring()}, disease: {disease.numpy().tostring()}' + '}'
+    except Exception as E:
+        print(E)
+        return jsonify({
+            'error': E.__str__()
+        }), 500
+
+
+if __name__ == "__main__":
+    # app.run(host='0.0.0.0', port=81)
+    app.run(host='0.0.0.0')
