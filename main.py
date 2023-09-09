@@ -23,7 +23,8 @@ class SegmentationModel():
     def forward(self, x):
         input_data = x
         # input_data = torchvision.transforms.functional.convert_image_dtype(input_data, dtype=torch.float32)
-        input_data = torchvision.transforms.Resize((512,512))(input_data)
+        # input_data = torchvision.transforms.Resize((512,512))(input_data)
+        input_data = tf.image.resize(input_data, [512,512])
         self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
 
         self.interpreter.invoke()
@@ -41,11 +42,9 @@ def FileStorage_to_Tensor(file_storage_object):
     # image_binary = file_storage_object.read()
     image_binary = file_storage_object
     pil_image = PIL.Image.open(io.BytesIO(image_binary))
-    transform = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ])
-    tensor_image = transform(pil_image)
+    tensor_image = tf.convert_to_tensor(pil_image)
+    tensor_image = tf.transpose(tensor_image, perm=[2,0,1])
+    print(tensor_image.shape)
     return tensor_image
 
 segmentation_model = SegmentationModel()
@@ -69,7 +68,7 @@ def index():
         image = FileStorage_to_Tensor(image_data)
         print(type(image))
         # step 2 segment image
-        leaf, disease = segmentation_model.forward(image.unsqueeze(0))
+        leaf, disease = segmentation_model.forward(image)
 
         return '{' + f'leaf: {leaf.numpy().tostring()}, disease: {disease.numpy().tostring()}' + '}'
     except Exception as E:
