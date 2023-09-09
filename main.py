@@ -1,6 +1,4 @@
 from flask import Flask, jsonify, request
-import torchvision
-import torch
 import tensorflow as tf
 import PIL
 import io
@@ -25,6 +23,8 @@ class SegmentationModel():
         # input_data = torchvision.transforms.functional.convert_image_dtype(input_data, dtype=torch.float32)
         # input_data = torchvision.transforms.Resize((512,512))(input_data)
         input_data = tf.image.resize(input_data, [512,512])
+        input_data = tf.transpose(input_data, perm=[2,0,1])
+        input_data = input_data[tf.newaxis, ...]
         self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
 
         self.interpreter.invoke()
@@ -33,9 +33,8 @@ class SegmentationModel():
         # use tensor() in order to get a pointer to the tensor
         leaf_data = self.interpreter.get_tensor(self.output_details[0]['index'])
         disease_data = self.interpreter.get_tensor(self.output_details[1]['index'])
-        leaf_data = torch.from_numpy(leaf_data)
-        disease_data = torch.from_numpy(disease_data)
-
+        # leaf_data = torch.from_numpy(leaf_data)
+        # disease_data = torch.from_numpy(disease_data)
         return (leaf_data, disease_data)
 
 def FileStorage_to_Tensor(file_storage_object):
@@ -43,8 +42,6 @@ def FileStorage_to_Tensor(file_storage_object):
     image_binary = file_storage_object
     pil_image = PIL.Image.open(io.BytesIO(image_binary))
     tensor_image = tf.convert_to_tensor(pil_image)
-    tensor_image = tf.transpose(tensor_image, perm=[2,0,1])
-    print(tensor_image.shape)
     return tensor_image
 
 segmentation_model = SegmentationModel()
@@ -70,7 +67,7 @@ def index():
         # step 2 segment image
         leaf, disease = segmentation_model.forward(image)
 
-        return '{' + f'leaf: {leaf.numpy().tostring()}, disease: {disease.numpy().tostring()}' + '}'
+        return '{' + f'leaf: {leaf.tostring()}, disease: {disease.tostring()}' + '}'
     except Exception as E:
         print(E)
         return jsonify({
