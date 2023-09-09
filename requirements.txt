@@ -8,4 +8,4 @@ torch==2.0.0
 torchvision==0.15.1
 # segmentation-models-pytorch==0.3.2
 requests-toolbelt==0.10.1
-tensorflow-cpu
+tensorflow
