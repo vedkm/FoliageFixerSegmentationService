@@ -67,7 +67,7 @@ def index():
         # step 2 segment image
         leaf, disease = segmentation_model.forward(image)
 
-        return '{' + f'\"leaf\": \"{leaf.tostring()}\", \"disease\": \"{disease.tostring()}\"' + '}'
+        return jsonify('{' + '\"leaf\": ' + '\"' + rf'{leaf.tostring()}' + '\",' + '\"disease\": ' + '\"' + rf'{disease.tostring()}' + '\"' + '}')
     except Exception as E:
         print(E)
         return jsonify({
